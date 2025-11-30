@@ -16,9 +16,14 @@ A Python toolkit for parsing, filtering, and exporting GEDCOM genealogical data 
 python gedcom_filter.py <input.ged> [options]
 ```
 
+
 #### Common Options
 - `--ancestor_generations N`   : Include N generations of ancestors (use negative for all)
 - `--descendant_generations N` : Include N generations of descendants
+- `--wider_descendants_mode {none,start,deep}` : Control inclusion of wider descendants:
+	- `none` (default): Do not include wider descendants
+	- `start`: Include other descendants of ancestors down to the starting generation
+	- `deep`: Include other descendants of ancestors down to the descendants level
 - `--partners`                 : Include partners of filtered individuals
 - `--siblings`                 : Include siblings of filtered individuals
 - `--only_use_photo_tags`      : Only use photo tags for photo extraction
@@ -27,9 +32,10 @@ python gedcom_filter.py <input.ged> [options]
 - `--verbose`                  : Enable debug logging
 - `--help`                     : Show help message
 
+
 ### Example
 ```
-python gedcom_filter.py mytree.ged --ancestor_generations 3 --descendant_generations 1 --partners --output_file filtered.ged --photo_dir photos --verbose
+python gedcom_filter.py mytree.ged --ancestor_generations 3 --descendant_generations 1 --wider_descendants_mode start --partners --output_file filtered.ged --photo_dir photos --verbose
 ```
 
 ## Project Structure
