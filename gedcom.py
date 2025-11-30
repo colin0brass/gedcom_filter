@@ -25,46 +25,11 @@ from Person import Person, LifeEvent
 
 logger = logging.getLogger(__name__)
 
-homelocationtags = ('OCCU', 'CENS', 'EDUC')
-otherlocationtags = ('CHR', 'BAPM', 'BASM', 'BAPL', 'IMMI', 'NATU', 'ORDN','ORDI', 'RETI', 
-                     'EVEN',  'CEME', 'CREM', 'FACT' )
-addrtags = ('ADR1', 'ADR2', 'ADR3', 'CITY', 'STAE', 'POST', 'CTRY')
-
-def getgdate (gstr):
-    r = datetime.fromisocalendar(1000,1,1)
-    d = m = y = None
-    if gstr:
-        k = gstr.value.kind.name
-        if (k in ['SIMPLE', 'ABOUT','FROM']):
-            y = gstr.value.date.year
-            m = gstr.value.date.month_num
-            d = gstr.value.date.day
-        elif (k in ['AFTER','BEFORE']):
-            y = gstr.value.date.year
-            m = gstr.value.date.month_num
-            d = gstr.value.date.day
-        elif (k == 'RANGE') or(k ==  'PERIOD'):
-            y = gstr.value.date1.year
-            m = gstr.value.date1.month_num
-            d = gstr.value.date1.day
-
-        elif k == 'PHRASE':
-            #TODO need to fix up
-            y = y 
-        else:
-            logger.warning ("Date type; %s", gstr.value.kind.name)
-        y = (y, 1000) [y == None]
-        m = (m, 1) [m == None]
-        d = (d, 1) [d == None]
-
-        r = r.replace(y, m, d)
-    return r
-
-
-
 class Gedcom:
     """
     Main GEDCOM handler for people and places.
+
+    Provides high-level operations for parsing, filtering, and exporting GEDCOM genealogical data.
 
     Attributes:
         gedcom_parser (GedcomParser): Instance for parsing GEDCOM files and extracting data.
@@ -77,13 +42,7 @@ class Gedcom:
         'address_book'
     ]
     def __init__(self, gedcom_file: Path, only_use_photo_tags: bool) -> None:
-        """
-        Initialize the Gedcom handler and parse people and places from the GEDCOM file.
-
-        Args:
-            gedcom_file (Path): Path to the GEDCOM file to load.
-            only_use_photo_tags (bool): If True, only use photo tags for photo extraction.
-        """
+        """Initialize the Gedcom handler and load people and places from the GEDCOM file."""
         self.gedcom_parser = GedcomParser(
             gedcom_file=gedcom_file,
             only_use_photo_tags=only_use_photo_tags

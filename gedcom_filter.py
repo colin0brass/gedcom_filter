@@ -35,10 +35,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
     Create and return the argument parser for the CLI.
 
     Returns:
-        argparse.ArgumentParser: Configured argument parser with the following arguments:
-            - input_files: One or more GEDCOM files to process (positional, required)
-            - --verbose: Enable verbose output (flag)
-            - --output_folder: Folder to put output files (default: 'output')
+        argparse.ArgumentParser: Configured argument parser with all supported options for filtering and exporting GEDCOM data.
     """
     parser = argparse.ArgumentParser(
         description='Convert GEDCOM to KML and lookup addresses',
@@ -72,18 +69,14 @@ def main() -> None:
     """
     Main entry point for the GEDCOM filter script.
 
-    Parses command-line arguments, processes GEDCOM files, and generates output.
+    Parses command-line arguments, configures logging, processes GEDCOM files, and generates filtered output files and reports.
 
     Workflow:
-        1. Parse CLI arguments (input files, output folder, verbosity)
-        2. Configure logging based on verbose flag
-        3. Create output folder if it doesn't exist
-        4. For each input GEDCOM file:
-            - Resolve absolute file path
-            - Create Gedcom object to process the file
-
-    Raises:
-        SystemExit: If no input files are provided or if file processing fails
+      1. Parse CLI arguments (input files, output folder, verbosity, filtering options)
+      2. Configure logging based on verbose flag
+      3. Create output folder if it doesn't exist
+      4. For each input GEDCOM file, parse, filter, geocode, and export results
+      5. Save filtered GEDCOM, summary CSVs, and optional KML/visualizations
     """
     import sys
     parser = get_arg_parser()

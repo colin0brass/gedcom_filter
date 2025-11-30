@@ -4,12 +4,12 @@ Person.py - Person and LifeEvent classes for GEDCOM mapping.
 Defines:
     - Person: Represents an individual in the GEDCOM file, with attributes for names, events, relationships, and photos.
     - LifeEvent: Represents a life event (birth, death, marriage, etc.) for a person, including date and place.
-    - DateFromField: Utility for extracting a year from a date field.
 
 Authors: @lmallez, @D-jeffrey, @colin0brass
 Last updated: 2025-11-29
 """
-__all__ = ['Person', 'LifeEvent', 'DateFromField']
+
+__all__ = ['Person', 'LifeEvent']
 
 import logging
 import re
@@ -21,36 +21,30 @@ from ged4py.model import Record, NameRec
 
 logger = logging.getLogger(__name__)
 
-def DateFromField(field):
-    if field:
-        if not isinstance(field, str):
-            field = str(field)
-        # BC or B.C
-        if field.lower().find("bc") > 0 or field.lower().find("b.c") > 0:
-                return -int(field[:field.lower().find("b")])
-        if len(field) > 3 and field[3].isdigit():
-            try:
-                return int(field[:4])
-            except:
-                pass
-        try:
-            return int(field)
-        except:
-            digits = ''
-            for char in field:
-                if char.isdigit() or char == '-':
-                    digits += char
-            return int(digits) if digits else None
-    return None
-
 class Partner:
+    """
+    Represents a partner relationship for a person (not widely used in main logic).
+
+    Attributes:
+        xref_id (str): Partner's GEDCOM cross-reference ID.
+        latlon (Optional[LatLon]): Latitude/longitude of the partner.
+    """
     def __init__(self, xref_id, latlon : LatLon = None):
+        """
+        Initialize a Partner.
+
+        Args:
+            xref_id (str): Partner's GEDCOM cross-reference ID.
+            latlon (Optional[LatLon]): Latitude/longitude of the partner.
+        """
         self.xref_id = xref_id
         self.latlon :LatLon = latlon
+
     def __str__(self):
         return f"Person(id={self.xref_id}, LatLon={self.latlon})"
+
     def __repr__(self) -> str:
-        return f'[ {self.parent.xref_id} : {self.parent.name} -> {self.xref_id} {self.mother} - {self.latlon} ]'
+        return f'[ {self.xref_id} : LatLon={self.latlon} ]'
  
 class Person:
     """
@@ -58,27 +52,34 @@ class Person:
 
     Attributes:
         xref_id (str): GEDCOM cross-reference ID.
-        name (str): Full name.
-        father (Optional[str]): Father's xref ID.
-        mother (Optional[str]): Mother's xref ID.
-        children (List[str]): List of children xref IDs.
-        latlon (Optional[LatLon]): Latitude/longitude.
+        name (Optional[str]): Full name.
+        father (Optional[Person]): Father (xref ID or Person).
+        mother (Optional[Person]): Mother (xref ID or Person).
+        latlon (Optional[LatLon]): Latitude/longitude (best known position).
         birth (Optional[LifeEvent]): Birth event.
         death (Optional[LifeEvent]): Death event.
         marriages (List[LifeEvent]): Marriage events.
-        firstname (str): First name.
-        surname (str): Surname.
-        maidenname (str): Maiden name.
-        sex (str): Sex.
-        age (Union[int, str]): Age or age with cause of death.
-        location: Best known location.
+        residences (List[LifeEvent]): Residence events.
+        firstname (Optional[str]): First name.
+        surname (Optional[str]): Surname.
+        maidenname (Optional[str]): Maiden name.
+        sex (Optional[str]): Sex.
+        title (Optional[str]): Title.
+        children (List[str]): List of children xref IDs.
+        partners (List[str]): List of partner xref IDs.
+        age (Any): Age or age with cause of death.
+        photos_all (List[str]): All photo file paths or URLs.
+        photo (Optional[str]): Primary photo file path or URL.
+        location (Any): Best known location.
+        family_spouse (List[str]): FAMS family IDs (as spouse/partner).
+        family_child (List[str]): FAMC family IDs (as child).
     """
-    __slots__ = ['xref_id', 'name', 'father', 'mother', 'latlon', 'birth', 'death', 'marriages', 'home', 'firstname', 
+    __slots__ = ['xref_id', 'name', 'father', 'mother', 'latlon', 'birth', 'death', 'marriages', 'residences', 'firstname', 
                  'surname', 'maidenname','sex','title', 'photos_all', 'photo', 'children', 'partners', 'age', 'location',
                  'family_spouse', 'family_child']
     def __init__(self, xref_id : str):
         """
-        Initialize a Person.
+        Initialize a Person instance with all relationship, event, and metadata fields.
 
         Args:
             xref_id (str): GEDCOM cross-reference ID.
@@ -90,10 +91,8 @@ class Person:
         self.latlon : LatLon = None           # save the best postion
         self.birth : LifeEvent = None
         self.death : LifeEvent = None
-        # TODO need to deal with multiple mariages
         self.marriages : List[LifeEvent] = []
-        # TODO multiple homes
-        self.home : List[LifeEvent] = []
+        self.residences : List[LifeEvent] = []
         self.firstname : Optional[str] = None               # firstname Name
         self.surname : Optional[str] = None             # Last Name
         self.maidenname : Optional[str] = None
@@ -109,14 +108,23 @@ class Person:
         self.family_child = []
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the person (xref and name).
+        """
         return f"Person(id={self.xref_id}, name={self.name})"
-        
+
     def __repr__(self) -> str:
+        """
+        Returns a detailed string representation of the person for debugging.
+        """
         return f"[ {self.xref_id} : {self.name} - {self.father} & {self.mother} - {self.latlon} ]"
 
     # return "year (Born)" or "year (Died)" or "? (Unknown)" along with year as a string or None
     # Example "2010 (Born)", "2010" or "1150 (Died)", "1150" or "? (Unknown)"
     def refyear(self):
+        """
+        Returns a tuple of (best year string, year) for the person, based on birth or death.
+        """
         bestyear = "? (Unknown)"
         year = None
         if self.birth and self.birth.date:
@@ -141,7 +149,9 @@ class Person:
         return 'Unknown'
     
     def bestlocation(self):
-        # TODO Best Location should consider if in KML mode and what is selected
+        """
+        Returns the best known location for the person as [latlon, description].
+        """
         best = ["Unknown", ""]
         if self.birth and self.birth.location:
             best = [
@@ -156,8 +166,9 @@ class Person:
         return best
 
     def bestLatLon(self):
-        # TODO Best Location should consider if in KML mode and what is selected  
-        # If the location is set in the GED, using MAP attribute then that will be the best
+        """
+        Returns the best known LatLon for the person (birth, then death, else None).
+        """
         best = LatLon(None, None)
         if self.birth and self.birth.latlon and self.birth.latlon.hasLocation():
             best = self.birth.latlon
@@ -170,12 +181,11 @@ class LifeEvent:
     Represents a life event (birth, death, marriage, etc.) for a person.
 
     Attributes:
-        place (str): The place where the event occurred.
-        date: The date of the event (can be string or ged4py date object).
-        what: The type of event (e.g., 'BIRT', 'DEAT').
-        record (Record): The GEDCOM record associated with the event.
-        location (Location): Geocoded location object.
-        latlon (LatLon): Latitude/longitude of the event, if available.
+        place (Optional[str]): The place where the event occurred.
+        date: The date of the event (string or ged4py date object).
+        what (Optional[str]): The type of event (e.g., 'BIRT', 'DEAT').
+        record (Optional[Record]): The GEDCOM record associated with the event.
+        location (Optional[Location]): Geocoded location object.
     """
     __slots__ = [
         'place',
@@ -187,11 +197,13 @@ class LifeEvent:
     ]
     def __init__(self, place: str, atime, position: Optional[LatLon] = None, what=None, record: Optional[Record] = None):
         """
+        Initialize a LifeEvent instance.
+
         Args:
             place (str): Place of the event.
-            atime: Date of the event.
-            latlon (Optional[LatLon]): Latitude/longitude.
-            what: Type of event.
+            atime: Date of the event (string or ged4py date object).
+            position (Optional[LatLon]): Latitude/longitude.
+            what (Optional[str]): Type of event (e.g., 'BIRT', 'DEAT').
             record (Optional[Record]): GEDCOM record.
         """
         self.place: Optional[str] = place
@@ -202,18 +214,56 @@ class LifeEvent:
         
 
     def __repr__(self) -> str:
+        """
+        Returns a string representation of the LifeEvent for debugging.
+        """
         if self.what:
             return f"[ {self.date} : {self.place} is {self.what}]"
         return f'[ {self.date} : {self.place} ]'
     
     def asEventstr(self):
+        """
+        Returns a string describing the event (date and place).
+        """
         if self:
             place = f" at {self.getattr('place')}" if self.place is not None else ""
             date = f" on {self.getattr('date')}" if self.date else ""
             return f"{date}{place}"
         return ""
     
+    def DateFromField(field):
+        if field:
+            if not isinstance(field, str):
+                field = str(field)
+            # BC or B.C
+            if field.lower().find("bc") > 0 or field.lower().find("b.c") > 0:
+                    return -int(field[:field.lower().find("b")])
+            if len(field) > 3 and field[3].isdigit():
+                try:
+                    return int(field[:4])
+                except:
+                    pass
+            try:
+                return int(field)
+            except:
+                digits = ''
+                for char in field:
+                    if char.isdigit() or char == '-':
+                        digits += char
+                return int(digits) if digits else None
+        return None
+
+
     def whenyear(self, last = False) -> Optional[str]:
+        """
+        Returns the year (as string) for the event date, if available.
+
+        Args:
+            last (bool): If True, returns the last year in a range.
+
+        Returns:
+            Optional[str]: Year string or None.
+        """
         if self.date:
             if isinstance(self.date, str):
                 return (self.date)
@@ -235,11 +285,15 @@ class LifeEvent:
 
     def whenyearnum(self, last = False):
         """
-        Return 0 if None
+        Returns the year as an integer (or 0 if not available).
         """
+        from Person import DateFromField
         return DateFromField(self.whenyear(last))
 
     def getattr(self, attr):
+        """
+        Returns the value of a named attribute for the event, with some aliases.
+        """
         if attr == 'latlon':
             return self.location.latlon if self.location else None
         elif attr == 'when' or attr == 'date':
@@ -252,7 +306,11 @@ class LifeEvent:
         return None
 
     def __str__(self) -> str:
+        """
+        Returns a string summary of the event (place, date, latlon, what).
+        """
         return f"{self.getattr('place')} : {self.getattr('date')} - {self.getattr('latlon')} {self.getattr('what')}"
+    
     def date_year(self, last: bool = False) -> Optional[str]:
         """
         Returns the year string for the event date.
@@ -292,4 +350,3 @@ class LifeEvent:
         if name == 'pos':
             return (None, None)
         return None
-

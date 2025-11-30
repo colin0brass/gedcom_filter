@@ -170,6 +170,9 @@ class GedcomParser:
         title = record.sub_tag("TITL")
         person.title = title.value if title else ""
 
+        # Extract residences
+        person.residences = self._get_residences(record)
+
         # Grab photos
         photos_all, preferred_photos = self._extract_photos_from_record(record)
         person.photos_all = photos_all
@@ -182,6 +185,27 @@ class GedcomParser:
 
         return person
 
+    def _get_residences(self, record: Record) -> List[str]:
+        """
+        Extracts residence places from a Record.
+
+        Args:
+            record (Record): GEDCOM record.
+
+        Returns:
+            List[str]: List of residence places.
+        """
+        residences = []
+        for event_tag in ['RESI', 'ADDR']:
+            for event_record in record.sub_tags(event_tag):
+                place = GedcomParser.get_place(event_record, placetag='PLAC')
+                date = event_record.sub_tag('DATE')
+                residence = LifeEvent(place, date, what='RESI', record=event_record)
+                if place:
+                    residences.append(residence)
+
+        return residences
+    
     def _extract_photos_from_record(self, record: Record) -> list:
         """
         Extracts all valid photo file paths from a GEDCOM record.
@@ -256,37 +280,48 @@ class GedcomParser:
         Returns:
             Dict[str, Person]: Updated dictionary of Person objects.
         """
-        idx = 0
         for record in records('FAM'):
-            husband_record = record.sub_tag('HUSB')
-            wife_record = record.sub_tag('WIFE')
-            husband = people.get(husband_record.xref_id) if husband_record else None
-            wife = people.get(wife_record.xref_id) if wife_record else None
-            # Add partners (irrespective of marriages)
-            if husband and wife:
-                husband.partners.append(wife_record.xref_id)
-                wife.partners.append(husband_record.xref_id)
+            # Get partner list from family record
+            # Including non-traditional families by collecting all partners
+            partner_person_list = []
+            for partner_tag in ['HUSB', 'WIFE']:
+                partner_record = record.sub_tag(partner_tag)
+                if partner_record and partner_record.xref_id not in people:
+                    # Create minimal Person if not already present
+                    people[partner_record.xref_id] = self.__create_person(partner_record)
+                partner_person = people.get(partner_record.xref_id) if partner_record else None
+                if partner_person:
+                    partner_person_list.append(partner_person)
+
+            if len(partner_person_list) > 2:
+                logger.warning(f"Family record {record.xref_id} has unexpected number of partners: {len(partner_person_list)}.")
+
+            # Link partners to each other
+            partner_set = set(partner_person_list)
+            for person in partner_person_list:
+                other_people = partner_set - {person}
+                if other_people:
+                    for other_person in other_people:
+                        if other_person and other_person.xref_id not in person.partners:
+                            person.partners.append(other_person.xref_id)
+
             # Add marriage events
             for marriages in record.sub_tags('MARR'):
                 marriage_event = self.__get_event_location(marriages)
-                if husband:
-                    # add missing xref_id to marriage event record for later use
-                    # BUG this causes the xref_id to be overwritten sometime between husband and wife processing
-                    # marriage_event.record.xref_id = wife_record.xref_id if wife_record else None
-                    husband.marriages.append(marriage_event)
-                if wife:
-                    # marriage_event.record.xref_id = husband_record.xref_id if husband_record else None
-                    wife.marriages.append(marriage_event)
+                for person in partner_person_list:
+                    person.marriages.append(marriage_event)
+
             for child in record.sub_tags('CHIL'):
                 if child.xref_id in people:
                     if people[child.xref_id]:
-                        if husband:
-                            people[child.xref_id].father = husband.xref_id
-                            husband.children.append(child.xref_id)
-                        if wife:
-                            people[child.xref_id].mother = wife.xref_id
-                            wife.children.append(child.xref_id)
-            idx += 1
+                        for partner_person in partner_person_list:
+                            if record.sub_tag('HUSB') and partner_person.xref_id == record.sub_tag('HUSB').xref_id:
+                                people[child.xref_id].father = partner_person.xref_id
+                                partner_person.children.append(child.xref_id)
+                            if record.sub_tag('WIFE') and partner_person.xref_id == record.sub_tag('WIFE').xref_id:
+                                people[child.xref_id].mother = partner_person.xref_id
+                                partner_person.children.append(child.xref_id)
+
         return people
 
     def parse_people(self) -> Dict[str, Person]:
