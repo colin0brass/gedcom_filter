@@ -23,12 +23,9 @@ Last updated: 2025-11-29
 import argparse
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union, List
 
 from gedcom import Gedcom
-
-
-
 
 def get_arg_parser() -> argparse.ArgumentParser:
     """
@@ -57,8 +54,9 @@ def get_arg_parser() -> argparse.ArgumentParser:
         help='Number of descendant generations to include in filtered GEDCOM (default: 2; -1 for all descendants)')
     parser.add_argument('--start_person', type=str, default="David Leonard Osborne",
         help='Name of the starting person to filter generations from (default: "David Leonard Osborne")')
-    parser.add_argument('--wider_descendants', action='store_true',
-        help='Include other descendants of ancestors in the filtered GEDCOM')
+    parser.add_argument('--wider_descendants_mode', type=str, choices=[
+        'none', 'start', 'deep'], default='none',
+        help='Control inclusion of wider descendants: "none" (default), "start" (to starting generation), or "deep" (to descendants level)')
     parser.add_argument('--partners', action='store_true',
         help='Include partners of ancestors in the filtered GEDCOM')
     parser.add_argument('--siblings', action='store_true',
@@ -103,10 +101,22 @@ def main() -> None:
     global logger
     logger = logging.getLogger(__name__)
 
+    # Print a compact summary of the program arguments
+    arg_summary = ', '.join(f"{k}={v}" for k, v in vars(args).items())
+    print(f"Program arguments: {arg_summary}")
+
     script_dir = Path(__file__).parent.resolve()
 
     output_folder = Path(args.output_folder).resolve()
     output_folder.mkdir(parents=True, exist_ok=True)
+
+    wider_descendants_end_generation: Union[int, None] = None
+    if args.wider_descendants_mode == 'none':
+        wider_descendants_end_generation = None
+    elif args.wider_descendants_mode == 'deep':
+        wider_descendants_end_generation = args.descendant_generations
+    elif args.wider_descendants_mode == 'start':
+        wider_descendants_end_generation = 0
 
     for gedcom_file in args.input_files:
         # Support gedcom_file as absolute or relative path
@@ -125,14 +135,15 @@ def main() -> None:
         logger.info(f"Starting person ID(s): {starting_person_id[0]}")
 
         logger.info("Filtering relatives...")
-        people_list = my_gedcom.filter_generations(
+        people_list, message = my_gedcom.filter_generations(
             starting_person_id=starting_person_id[0],
             num_ancestor_generations=args.ancestor_generations,
             num_descendant_generations=args.descendant_generations,
-            include_wider_descendants=args.wider_descendants,
+            wider_descendants_end_generation=wider_descendants_end_generation,
             include_partners=args.partners,
             include_siblings=args.siblings
         )
+        print(message)
         
         output_filename = args.output_file if args.output_file else f"{base_file_name}_filtered.ged"
         if not str(output_filename).lower().endswith('.ged'):
@@ -143,6 +154,7 @@ def main() -> None:
             new_gedcom_path = output_folder / output_filename,
             photo_dir = output_folder / "photos"
         )
+        print(f"Filtered GEDCOM exported to: {output_folder / output_filename}")
 
 if __name__ == "__main__":
     try:

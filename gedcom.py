@@ -78,7 +78,7 @@ class Gedcom:
         self.address_book = self.gedcom_parser.get_full_address_book()
         return self.address_book
 
-    def filter_generations(self, starting_person_id: str, num_ancestor_generations: int, num_descendant_generations: int, include_wider_descendants: bool, include_partners: bool = False, include_siblings: bool = False) -> Dict[str, Person]:
+    def filter_generations(self, starting_person_id: str, num_ancestor_generations: int, num_descendant_generations: int, wider_descendants_end_generation: Union[int, None], include_partners: bool = False, include_siblings: bool = False) -> Dict[str, Person]:
         """
         Filter people to include ancestors and descendants of a starting person.
 
@@ -238,17 +238,18 @@ class Gedcom:
                     collect_descendants(child_id, next_generation, end_generation=end_generation)
         
         # Collect descendants from each ancestor
-        if include_wider_descendants:        
+        if wider_descendants_end_generation is not None:        
             earliest_gen = filtered_people_generations.earliest_generation
             for generation in range(0, earliest_gen-1, -1):
                 person_ids = filtered_people_generations.get_generation(generation)
                 for person_id in person_ids:
                     collect_descendants(person_id=person_id, generation=generation,
-                                        end_generation=0)
+                                        end_generation=wider_descendants_end_generation)
 
-        # Finally, collect descendants from the starting person
-        collect_descendants(person_id = starting_person_id, generation = 0,
-                            end_generation=num_descendant_generations)
+        # Finally, collect descendants from the starting person if not already done above
+        if wider_descendants_end_generation is None or wider_descendants_end_generation >= 0:
+            collect_descendants(person_id = starting_person_id, generation = 0,
+                                end_generation=num_descendant_generations)
 
         # Combine all generations into a single dictionary of people
         all_ids = filtered_people_generations.all()
@@ -257,11 +258,12 @@ class Gedcom:
         earliest_gen = filtered_people_generations.earliest_generation
         latest_gen = filtered_people_generations.latest_generation
         num_generations = latest_gen - earliest_gen + 1
-        logger.info(f"Filtered {len(filtered_people)} people from {len(self.people)} total "
-                   f"({earliest_gen} earliest to {latest_gen} latest; {num_generations} generations) "
-                   f"from person {starting_person_id}: {self.people[starting_person_id].name})")
+        message = (f"Filtered {len(filtered_people)} people from {len(self.people)} total "
+               f"({earliest_gen} earliest to {latest_gen} latest; {num_generations} generations) "
+               f"from person {self.people[starting_person_id].name}")
+        logger.info(message)
         
-        return filtered_people
+        return filtered_people, message
 
     def find_person_by_name(self, name: str, exact_match: bool = False) -> Optional[List[str]]:
         """
