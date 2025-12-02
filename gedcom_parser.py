@@ -530,12 +530,17 @@ class GedcomParser:
         # Write photo if present
         if person.photo and output_path is not None:
             src_photo = Path(person.photo)
+            # Clean filename: replace spaces and special characters (except . and extension) with underscores
+            # Keep bracket contents
+            name_part, ext = os.path.splitext(src_photo.name)
+            # Replace any sequence of non-alphanumeric (except .) with _
+            cleaned_name = re.sub(r'[^A-Za-z0-9]+', '_', name_part) + ext
             if photo_subdir:
-                dest_photo = photo_subdir / src_photo.name
-                file_path = f"{photo_subdir.name}/{src_photo.name}"
+                dest_photo = photo_subdir / cleaned_name
+                file_path = f"{photo_subdir.name}/{cleaned_name}"
             else:
-                dest_photo = output_path.parent / src_photo.name
-                file_path = src_photo.name
+                dest_photo = output_path.parent / cleaned_name
+                file_path = cleaned_name
             try:
                 shutil.copy2(src_photo, dest_photo)
             except Exception as e:
