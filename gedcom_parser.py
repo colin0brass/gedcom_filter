@@ -9,8 +9,9 @@ Last updated: 2025-11-29
 """
 import os
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import tempfile
+import shutil
 
 import logging
 from pathlib import Path
@@ -411,7 +412,7 @@ class GedcomParser:
         self._load_people_and_places()
         return self._cached_address_book if self._cached_address_book else FuzzyAddressBook()
 
-    def gedcom_writer(self, people, output_path, photo_dir=None):
+    def gedcom_writer(self, people: Dict[str, Person], output_filename: str, output_folder: Path, photo_subdir: Union[Path, None]):
         """
         Write a GEDCOM file from a dictionary of Person objects.
 
@@ -420,20 +421,19 @@ class GedcomParser:
             output_path (Path): Path to write the GEDCOM file.
             photo_dir (Optional[Path]): If provided, copy photo files to this directory and update references.
         """
-        import shutil
-        if photo_dir:
+        # Ensure output_path is a Path object
+        output_path = output_folder / output_filename
+        photo_dir = None
+        if photo_subdir:
+            photo_dir = output_path.parent / photo_subdir
             photo_dir.mkdir(parents=True, exist_ok=True)
-            photo_relative_folder_path = os.path.relpath(photo_dir, start=os.path.dirname(output_path))
-        else:
-            photo_relative_folder_path = None
 
-        # Build FAM records and FAMS/FAMC mapping
-        fam_map = {}  # (father, mother) -> set(children)
-        # 1. Add families with children (traditional FAMs)
+        fam_map = {}  # Ensure fam_map is defined before use
+
+        # 1. Add families with children (parent-child families)
         for person in people.values():
             father = getattr(person, 'father', None)
             mother = getattr(person, 'mother', None)
-            partners = getattr(person, 'partners', [])
             if father not in people:
                 father = None
             if mother not in people:
@@ -460,7 +460,6 @@ class GedcomParser:
                     if key not in partner_fam_keys:
                         partner_fam_keys.add(key)
                         fam_map[key] = set()  # No children
-
 
         fam_id_map = {}
         fam_count = 1
@@ -498,14 +497,13 @@ class GedcomParser:
             f.write("1 CHAR UTF-8\n")
             # Write INDI records
             for person in people.values():
-                self._write_person_gedcom(f, person, photo_dir, photo_relative_folder_path)
+                self._write_person_gedcom(f, person, output_path, photo_dir)
             # Write FAM records
             for fam_key, children in fam_map.items():
                 fam_id = fam_id_map[fam_key]
                 self._write_family_gedcom(f, fam_id, fam_key, children)
-            f.write("0 TRLR\n")
 
-    def _write_person_gedcom(self, f, person, photo_dir, photo_relative_folder_path):
+    def _write_person_gedcom(self, f, person, output_path: str, photo_subdir: str):
         import shutil
         f.write(f"0 {person.xref_id} INDI\n")
         if person.name:
@@ -530,19 +528,18 @@ class GedcomParser:
         for famc in getattr(person, 'family_child', []):
             f.write(f"1 FAMC {famc}\n")
         # Write photo if present
-        if person.photo:
+        if person.photo and output_path is not None:
             src_photo = Path(person.photo)
-            dest_photo = src_photo
-            if photo_dir:
-                dest_photo = photo_dir / src_photo.name
-                try:
-                    shutil.copy2(src_photo, dest_photo)
-                except Exception as e:
-                    logger.warning(f"Could not copy photo {src_photo} to {dest_photo}: {e}")
-            if photo_relative_folder_path:
-                file_path = f"{photo_relative_folder_path}/{dest_photo.name}"
+            if photo_subdir:
+                dest_photo = photo_subdir / src_photo.name
+                file_path = f"{photo_subdir.name}/{src_photo.name}"
             else:
-                file_path = str(dest_photo)
+                dest_photo = output_path.parent / src_photo.name
+                file_path = src_photo.name
+            try:
+                shutil.copy2(src_photo, dest_photo)
+            except Exception as e:
+                logger.warning(f"Could not copy photo {src_photo} to {dest_photo}: {e}")
             f.write("1 OBJE\n")
             f.write(f"2 FILE {file_path}\n")
             ext = dest_photo.suffix[1:].lower()

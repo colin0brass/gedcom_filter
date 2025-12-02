@@ -300,7 +300,7 @@ class Gedcom:
             logger.warning(f"No person found with name '{name}'")
             return None
         
-    def export_people_with_photos(self, people: Dict[str, 'Person'], new_gedcom_path: Path, photo_dir: Path) -> None:
+    def export_people_with_photos(self, people: Dict[str, 'Person'], output_filename: str, output_folder: str, photo_subdir: str) -> None:
         """
         Export all people to a new GEDCOM file, copying any referenced photo images to a new directory.
 
@@ -310,4 +310,8 @@ class Gedcom:
             photo_dir (Path): Directory to copy photo images into.
         """
         # Write GEDCOM file with updated photo paths
-        self.gedcom_parser.gedcom_writer(people, new_gedcom_path, photo_dir)
+        # Ensure output_folder and photo_subdir are Path objects
+        from pathlib import Path
+        output_folder = Path(output_folder)
+        photo_subdir = Path(photo_subdir) if photo_subdir else None
+        self.gedcom_parser.gedcom_writer(people, output_filename, output_folder, photo_subdir)

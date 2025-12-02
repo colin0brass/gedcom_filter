@@ -48,6 +48,8 @@ def get_arg_parser() -> argparse.ArgumentParser:
         help='Folder to put output files (default: ./output)')
     parser.add_argument('--output_file', type=str, default=None,
         help='Output GEDCOM file name (default: derived from input file)')
+    parser.add_argument('--photo_subdir', type=str, default='photos',
+        help='Subdirectory within output folder to store photos (default: photos)')
     parser.add_argument('--ancestor_generations', type=int, default=2,
         help='Number of ancestor generations to include in filtered GEDCOM (default: 2; -1 for all ancestors)')
     parser.add_argument('--descendant_generations', type=int, default=2,
@@ -151,8 +153,9 @@ def main() -> None:
         logger.info(f"Exporting filtered GEDCOM with photos to: {output_folder / output_filename}")
         my_gedcom.export_people_with_photos(
             people = people_list,
-            new_gedcom_path = output_folder / output_filename,
-            photo_dir = output_folder / "photos"
+            output_filename = output_filename,
+            output_folder = args.output_folder,
+            photo_subdir = args.photo_subdir
         )
         print(f"Filtered GEDCOM exported to: {output_folder / output_filename}")
 
