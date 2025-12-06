@@ -12,7 +12,7 @@ __all__ = ['Location']
 import logging
 from typing import Dict, Optional, Union
 from rapidfuzz import process, fuzz
-from LatLon import LatLon
+from .lat_lon import LatLon
 
 # Re-use higher-level logger (inherits configuration from main script)
 logger = logging.getLogger(__name__)
@@ -23,14 +23,20 @@ class Location:
 
     Attributes:
         used (int): Usage count.
-        latlon (LatLon): Latitude/longitude. 
+        latlon (LatLon): Latitude/longitude.
         country_code (str): Country code.
         country_name (str): Country name.
         continent (str): Continent name.
         found_country (bool): Whether country was found.
         address (str): Address string.
         alt_addr (str): Alternative address string.
-        ... (other optional attributes)
+        type (str): Location type.
+        class_ (str): Location class.
+        icon (str): Icon for location.
+        place_id (str): Place identifier.
+        boundry (str): Boundary information.
+        size (str): Size information.
+        importance (str): Importance value.
     """
     __slots__ = [
         'used', 'latlon', 'country_code', 'country_name', 'continent', 'found_country', 'address',
@@ -118,4 +124,3 @@ class Location:
             obj.latlon = LatLon(d[lat_key], d[lon_key])
         obj.used = 0
         return obj
-    

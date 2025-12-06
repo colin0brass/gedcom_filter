@@ -23,9 +23,9 @@ Last updated: 2025-11-29
 import argparse
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any, Union, List
+from typing import Union
 
-from gedcom import Gedcom
+from gedcom.gedcom import Gedcom
 
 def get_arg_parser() -> argparse.ArgumentParser:
     """

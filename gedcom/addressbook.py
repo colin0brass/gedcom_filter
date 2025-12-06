@@ -12,12 +12,20 @@ import logging
 from typing import Any, Dict, Optional, Union, List
 from rapidfuzz import process, fuzz
 
-from location import Location
-from LatLon import LatLon
+from .location import Location
+from .lat_lon import LatLon
 
 logger = logging.getLogger(__name__)
 
 class FuzzyAddressBook:
+    """
+    FuzzyAddressBook for storing, managing, and fuzzy-matching geocoded addresses and locations.
+
+    Attributes:
+        __addresses (Dict[str, Location]): Dictionary of addresses.
+        __alt_addr_to_address_lookup (Dict[str, List[str]]): Mapping of alt_addr to addresses.
+        summary_columns (List[str]): Columns for summary reporting.
+    """
     def __init__(self):
         self.__addresses : Dict[str, Location] = {}
         self.__alt_addr_to_address_lookup: Dict[str, List[str]] = {}
@@ -117,11 +125,20 @@ class FuzzyAddressBook:
 
 
     def get_address(self, key: str) -> Optional[Location]:
+        """
+        Get the Location object for a given address key.
+
+        Args:
+            key (str): Address string.
+
+        Returns:
+            Optional[Location]: Location object or None if not found.
+        """
         return self.__addresses.get(key)
 
     def addresses(self) -> Dict[str, Location]:
         """
-        Returns the addresses in the address book.
+        Get all addresses in the address book.
 
         Returns:
             Dict[str, Location]: Dictionary of addresses.
@@ -130,7 +147,7 @@ class FuzzyAddressBook:
     
     def get_alt_addr_list(self) -> List[str]:
         """
-        Returns the list of alternative addresses in the address book.
+        Get the list of alternative addresses in the address book.
 
         Returns:
             List[str]: List of alternative addresses.
@@ -152,7 +169,7 @@ class FuzzyAddressBook:
 
     def get_address_list(self) -> List[str]:
         """
-        Returns the list of addresses in the address book.
+        Get the list of addresses in the address book.
 
         Returns:
             List[str]: List of addresses.
@@ -161,7 +178,7 @@ class FuzzyAddressBook:
 
     def len(self) -> int:
         """
-        Returns the number of addresses in the address book.
+        Get the number of addresses in the address book.
 
         Returns:
             int: Number of addresses.
@@ -177,7 +194,7 @@ class FuzzyAddressBook:
             threshold (int): Minimum similarity score (0-100) to accept a match.
 
         Returns:
-            str: The best matching address key, or None if no good match found.
+            Optional[str]: The best matching address key, or None if no good match found.
         """
         choices = list(self.__addresses.keys())
         if choices:
@@ -211,12 +228,17 @@ class FuzzyAddressBook:
             self.__add_address(address, location)
 
     def updatestats(self):
+        """
+        Update and return address book statistics.
+
+        Returns:
+            str: Statistics summary string.
+        """
         self.used = 0
         self.usedNone = 0
         self.totaladdr = 0
         if hasattr(self, 'addresses') and self.addresses:
             for place,location in self.addresses().items():
-                
                 if (getattr(location, 'used',0) > 0): 
                     self.used += 1
                     self.totaladdr += getattr(location, 'used',0)

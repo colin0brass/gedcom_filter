@@ -2,6 +2,8 @@
 
 A Python toolkit for parsing, filtering, and exporting GEDCOM genealogical data with advanced features for photo management, relationship filtering, and custom output.
 
+See also: [gedcom module README](gedcom/README.md)
+
 ## Features
 - Parse GEDCOM files and extract individuals, families, and events
 - Filter by ancestor/descendant generations, partners, siblings, and more
@@ -48,13 +50,23 @@ python gedcom_filter.py mytree.ged --ancestor_generations 3 --descendant_generat
 - `addressbook.py`     : Fuzzy address book for place matching
 
 ## Requirements
+
 - Python 3.8+
 - [ged4py](https://pypi.org/project/ged4py/)
+- [rapidfuzz](https://pypi.org/project/rapidfuzz/)
 
 Install dependencies:
 ```
 pip install -r requirements.txt
 ```
+
+## Testing
+Test coverage is provided for all major modules and real-world GEDCOM scenarios.
+Run tests with:
+```
+pytest
+```
+
 
 ## Author
 Colin Osborne (@colin0brass)

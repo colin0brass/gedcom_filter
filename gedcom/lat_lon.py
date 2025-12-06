@@ -14,7 +14,13 @@ from typing import Optional, Union
 
 class LatLon:
     __slots__ = ['lat', 'lon']
-    """ Creater a Position value with a of Lat and Lon  """
+    """
+    LatLon class for representing and validating latitude/longitude coordinates.
+
+    Attributes:
+        lat (Optional[float]): Latitude value.
+        lon (Optional[float]): Longitude value.
+    """
     def __init__(self, lat: Union[str, float, None], lon: Union[str, float, None]):
         """
         Initialize LatLon with latitude and longitude.

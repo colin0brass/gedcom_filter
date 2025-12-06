@@ -9,7 +9,7 @@ Last updated: 2025-11-29
 """
 import os
 import re
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 import tempfile
 import shutil
 
@@ -18,12 +18,8 @@ from pathlib import Path
 
 from ged4py.parser import GedcomReader
 from ged4py.model import Record, NameRec
-from ged4py.date import DateValue
-
-from location import Location
-from LatLon import LatLon
-from Person import Person, LifeEvent
-from addressbook import FuzzyAddressBook
+from .person import Person, LifeEvent
+from .addressbook import FuzzyAddressBook
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +28,19 @@ class GedcomParser:
     Parses GEDCOM files and extracts people and places.
 
     Attributes:
-        gedcom_file (Optional[str]): Path to GEDCOM file.
+        gedcom_file (Optional[Path]): Path to GEDCOM file.
+        _cached_people (Optional[Dict[str, Person]]): Cached people dictionary.
+        _cached_address_book (Optional[FuzzyAddressBook]): Cached address book.
+        only_use_photo_tags (bool): Whether to use only _PHOTO tags for photos.
+        simplify_date (bool): Whether to simplify date parsing.
+        simplify_range_policy (str): Policy for range simplification ('first', 'approximate').
     """
     __slots__ = [
         'gedcom_file',
         '_cached_people', '_cached_address_book',
-        'only_use_photo_tags'
+        'only_use_photo_tags',
+        'simplify_date',
+        'simplify_range_policy'
     ]
 
     LINE_RE = re.compile(
@@ -56,6 +59,8 @@ class GedcomParser:
         self._cached_people = None
         self._cached_address_book = None
         self.only_use_photo_tags = only_use_photo_tags
+        self.simplify_date = True
+        self.simplify_range_policy = 'first'  # 'first' or 'approximate'
 
     def close(self):
         """Placeholder for compatibility."""
@@ -63,6 +68,8 @@ class GedcomParser:
 
     def check_fix_gedcom(self, input_path: Path) -> Path:
         """Fixes common issues in GEDCOM records."""
+        if input_path is None:
+            return None
         temp_fd, temp_path = tempfile.mkstemp(suffix='.ged')
         os.close(temp_fd)
         changed = self.fix_gedcom_conc_cont_levels(input_path, temp_path)
@@ -105,25 +112,6 @@ class GedcomParser:
             logger.error(f"Failed to fix GEDCOM file {input_path}: {e}")
         return changed
 
-    @staticmethod
-    def get_place(record: Record, placetag: str = 'PLAC') -> Optional[str]:
-        """
-        Extracts the place value from a record.
-
-        Args:
-            record (Record): GEDCOM record.
-            placetag (str): Tag to extract.
-
-        Returns:
-            Optional[str]: Place value or None.
-        """
-        place_value = None
-        if record:
-            place = record.sub_tag(placetag)
-            if place:
-                place_value = place.value
-        return place_value
-    
     def __get_event_location(self, record: Record) -> Optional[LifeEvent]:
         """
         Creates a LifeEvent from a record.
@@ -136,8 +124,13 @@ class GedcomParser:
         """
         event = None
         if record:
-            place = GedcomParser.get_place(record)
-            event = LifeEvent(place, record.sub_tag('DATE'), record=record)
+            place = record.sub_tag('PLAC').value if record.sub_tag('PLAC') else None
+            date = record.sub_tag('DATE').value if record.sub_tag('DATE') else None
+            event = LifeEvent(
+                place = place,
+                date = date,
+                record=record,
+                what=record.tag)
         return event
 
     def __create_person(self, record: Record) -> Person:
@@ -150,7 +143,7 @@ class GedcomParser:
         Returns:
             Person: Person object.
         """
-        global BackgroundProcess
+
 
         person = Person(record.xref_id)
         person.name = ''
@@ -186,7 +179,7 @@ class GedcomParser:
 
         return person
 
-    def _get_residences(self, record: Record) -> List[str]:
+    def _get_residences(self, record: Record) -> List[LifeEvent]:
         """
         Extracts residence places from a Record.
 
@@ -199,15 +192,13 @@ class GedcomParser:
         residences = []
         for event_tag in ['RESI', 'ADDR']:
             for event_record in record.sub_tags(event_tag):
-                place = GedcomParser.get_place(event_record, placetag='PLAC')
-                date = event_record.sub_tag('DATE')
-                residence = LifeEvent(place, date, what='RESI', record=event_record)
-                if place:
-                    residences.append(residence)
+                event = self.__get_event_location(event_record)
+                if event.place:
+                    residences.append(event)
 
         return residences
     
-    def _extract_photos_from_record(self, record: Record) -> list:
+    def _extract_photos_from_record(self, record: Record) -> Tuple[List[str], List[str]]:
         """
         Extracts all valid photo file paths from a GEDCOM record.
 
@@ -228,7 +219,7 @@ class GedcomParser:
                 preferred_photos.extend(preferred_files)
         return photos, preferred_photos
     
-    def _extract_photo(self, obj: Record) -> list:
+    def _extract_photo(self, obj: Record) -> Tuple[List[str], List[str]]:
         """
         Extracts all valid photo file paths from a GEDCOM record's OBJE tags.
 
@@ -337,7 +328,7 @@ class GedcomParser:
         self._load_people_and_places()
         return self._cached_people if self._cached_people else {}
 
-    def _fast_count(self):
+    def _fast_count(self) -> None:
         def _count_gedcom_records( path, encoding):
                 """Return (people, families) counts for a GEDCOM file with given encoding."""
                 people = families = 0
@@ -418,18 +409,27 @@ class GedcomParser:
 
         Args:
             people (Dict[str, Person]): Dictionary of Person objects to write.
-            output_path (Path): Path to write the GEDCOM file.
-            photo_dir (Optional[Path]): If provided, copy photo files to this directory and update references.
+            output_filename (str): Name of the GEDCOM file to write.
+            output_folder (Path): Folder to write the GEDCOM file.
+            photo_subdir (Optional[Path]): If provided, copy photo files to this directory and update references.
         """
-        # Ensure output_path is a Path object
         output_path = output_folder / output_filename
         photo_dir = None
         if photo_subdir:
             photo_dir = output_path.parent / photo_subdir
             photo_dir.mkdir(parents=True, exist_ok=True)
 
-        fam_map = {}  # Ensure fam_map is defined before use
+        fam_map = self._build_family_map(people)
+        fam_id_map = self._assign_family_ids(fam_map)
+        self._assign_family_links(people, fam_map, fam_id_map)
+        self._write_gedcom_file(people, fam_map, fam_id_map, output_path, photo_dir)
 
+    def _build_family_map(self, people: Dict[str, Person]) -> dict:
+        """
+        Build a mapping of families (partners and children) from people.
+        Returns: fam_map: dict mapping (father, mother) or (partner1, partner2) to set of children.
+        """
+        fam_map = {}
         # 1. Add families with children (parent-child families)
         for person in people.values():
             father = getattr(person, 'father', None)
@@ -443,16 +443,13 @@ class GedcomParser:
                 if fam_key not in fam_map:
                     fam_map[fam_key] = set()
                 fam_map[fam_key].add(person.xref_id)
-
         # 2. Add partner-only families (no children)
         partner_fam_keys = set()
         for person in people.values():
             partners = getattr(person, 'partners', [])
             for partner_id in partners:
                 if partner_id in people:
-                    # Always order tuple to avoid duplicates (A,B) and (B,A)
                     key = tuple(sorted([person.xref_id, partner_id]))
-                    # Skip if this pair already has a family with children
                     fam_key1 = (person.xref_id, partner_id)
                     fam_key2 = (partner_id, person.xref_id)
                     if fam_key1 in fam_map or fam_key2 in fam_map:
@@ -460,21 +457,29 @@ class GedcomParser:
                     if key not in partner_fam_keys:
                         partner_fam_keys.add(key)
                         fam_map[key] = set()  # No children
+        return fam_map
 
+    def _assign_family_ids(self, fam_map: dict) -> dict:
+        """
+        Assign unique family IDs to each family in fam_map.
+        Returns: fam_id_map: dict mapping fam_key to family ID string.
+        """
         fam_id_map = {}
         fam_count = 1
         for fam_key in fam_map:
             fam_id = f"@F{fam_count:04d}@"
             fam_id_map[fam_key] = fam_id
             fam_count += 1
+        return fam_id_map
 
-        # Assign FAMS (as spouse) and FAMC (as child) to each person
+    def _assign_family_links(self, people: Dict[str, Person], fam_map: dict, fam_id_map: dict) -> None:
+        """
+        Assign FAMS (as spouse) and FAMC (as child) to each person based on family mappings.
+        """
         for fam_key, fam_id in fam_id_map.items():
-            # fam_key is either (father, mother) or (partner1, partner2) for partner-only fams
             if len(fam_key) == 2:
                 a, b = fam_key
                 children = fam_map[fam_key]
-                # FAMS: assign to both partners if both exist
                 if a and a in people:
                     if not hasattr(people[a], 'family_spouse'):
                         people[a].family_spouse = []
@@ -483,27 +488,36 @@ class GedcomParser:
                     if not hasattr(people[b], 'family_spouse'):
                         people[b].family_spouse = []
                     people[b].family_spouse.append(fam_id)
-                # FAMC: assign to children (if any)
                 for child in children:
                     if child in people:
                         if not hasattr(people[child], 'family_child'):
                             people[child].family_child = []
                         people[child].family_child.append(fam_id)
 
+    def _write_gedcom_file(self, people: Dict[str, Person], fam_map: dict, fam_id_map: dict, output_path: Path, photo_dir: Optional[Path]) -> None:
+        """
+        Write the GEDCOM file to disk, including INDI and FAM records.
+        """
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write("0 HEAD\n")
             f.write("1 SOUR gedcom_filter\n")
             f.write("1 GEDC\n2 VERS 5.5.1\n")
             f.write("1 CHAR UTF-8\n")
-            # Write INDI records
             for person in people.values():
                 self._write_person_gedcom(f, person, output_path, photo_dir)
-            # Write FAM records
             for fam_key, children in fam_map.items():
                 fam_id = fam_id_map[fam_key]
                 self._write_family_gedcom(f, fam_id, fam_key, children)
 
-    def _write_person_gedcom(self, f, person, output_path: str, photo_subdir: str):
+    def _write_person_gedcom(self, f, person: Person, output_path: Path, photo_subdir: Optional[Path]) -> None:
+        """
+        Write an individual (INDI) record to the GEDCOM file.
+        Args:
+            f: File object to write to.
+            person (Person): The person to write.
+            output_path (Path): Path to the GEDCOM file.
+            photo_subdir (Optional[Path]): Directory for photos, if any.
+        """
         import shutil
         f.write(f"0 {person.xref_id} INDI\n")
         if person.name:
@@ -513,13 +527,17 @@ class GedcomParser:
         if person.birth:
             f.write("1 BIRT\n")
             if person.birth.date:
-                f.write(f"2 DATE {person.birth.date.value}\n")
+                date_str = person.birth.date.resolved
+                if date_str:
+                    f.write(f"2 DATE {date_str}\n")
             if person.birth.place:
                 f.write(f"2 PLAC {person.birth.place}\n")
         if person.death:
             f.write("1 DEAT\n")
             if person.death.date:
-                f.write(f"2 DATE {person.death.date.value}\n")
+                date_str = person.death.date.resolved
+                if date_str:
+                    f.write(f"2 DATE {date_str}\n")
             if person.death.place:
                 f.write(f"2 PLAC {person.death.place}\n")
         # Write FAMS (spouse family) and FAMC (child family)
@@ -551,7 +569,15 @@ class GedcomParser:
             if ext:
                 f.write(f"2 FORM {ext}\n")
 
-    def _write_family_gedcom(self, f, fam_id, fam_key, children):
+    def _write_family_gedcom(self, f, fam_id: str, fam_key: tuple, children: set) -> None:
+        """
+        Write a family (FAM) record to the GEDCOM file.
+        Args:
+            f: File object to write to.
+            fam_id (str): Family ID.
+            fam_key (tuple): Family key (father, mother) or (partner1, partner2).
+            children (set): Set of children xref IDs.
+        """
         father, mother = fam_key
         f.write(f"0 {fam_id} FAM\n")
         if father:
