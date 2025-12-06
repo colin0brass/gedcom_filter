@@ -1,5 +1,5 @@
 import pytest
-from gedcom import LifeEvent, Location, LatLon
+from geo_gedcom import LifeEvent, Location, LatLon
 
 def test_life_event_init():
     event = LifeEvent(place="London", date="1900", position=LatLon(51.5, -0.1), what="BIRT")

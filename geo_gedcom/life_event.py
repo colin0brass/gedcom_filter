@@ -1,19 +1,23 @@
 """
-LifeEvent.py - LifeEvent class for GEDCOM mapping.
+life_event.py - geo_gedcom life event extraction and modeling for GEDCOM data.
 
-Defines:
-    - LifeEvent: Represents a life event (birth, death, marriage, etc.) for a person.
+This module provides the LifeEvent class and utilities for extracting and modeling
+life events (birth, death, marriage, etc.) from GEDCOM data. It supports:
+    - Parsing event records
+    - Normalizing event dates and locations
+    - Associating events with people and families
 
+Module: geo_gedcom.life_event
 Author: @colin0brass
 Last updated: 2025-12-06
 """
 
 from typing import Optional
+from ged4py.model import Record
 from ged4py.date import DateValue
 from .gedcom_date import GedcomDate
 from .lat_lon import LatLon
 from .location import Location
-from ged4py.model import Record
 
 class LifeEvent:
     """

@@ -1,5 +1,5 @@
 """
-gedcom.py - Main GEDCOM data model and handler.
+gedcom.py - Main geo_gedcom data model and handler.
 
 This module defines the Gedcom class, which provides high-level operations for parsing,
 filtering, and exporting GEDCOM genealogical data. It supports:
@@ -9,6 +9,7 @@ filtering, and exporting GEDCOM genealogical data. It supports:
     - Exporting filtered people and associated photos to new GEDCOM files
     - Integrating with geolocation and address book utilities
 
+Module: geo_gedcom.gedcom
 Author: @colin0brass
 Last updated: 2025-11-29
 """

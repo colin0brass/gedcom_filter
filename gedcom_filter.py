@@ -25,7 +25,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
-from gedcom.gedcom import Gedcom
+from geo_gedcom.gedcom import Gedcom
 
 def get_arg_parser() -> argparse.ArgumentParser:
     """

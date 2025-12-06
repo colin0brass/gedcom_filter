@@ -1,9 +1,13 @@
 """
-Partner.py - Partner class for GEDCOM mapping.
+partner.py - geo_gedcom partner and relationship modeling for GEDCOM data.
 
-Defines:
-    - Partner: Represents a partner relationship for a person.
+This module provides the Partner class and utilities for modeling relationships
+and partnerships in GEDCOM genealogical data. It supports:
+    - Parsing partner and family records
+    - Associating partners with life events
+    - Handling multiple partnerships and relationships
 
+Module: geo_gedcom.partner
 Author: @colin0brass
 Last updated: 2025-12-06
 """

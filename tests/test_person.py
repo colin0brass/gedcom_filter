@@ -1,5 +1,5 @@
 import pytest
-from gedcom import Person
+from geo_gedcom import Person
 
 def test_person_init():
     p = Person("I1")

@@ -1,5 +1,5 @@
 import pytest
-from gedcom.gedcom_date import GedcomDate
+from geo_gedcom.gedcom_date import GedcomDate
 from ged4py.calendar import GregorianDate
 
 def test_simple_year():

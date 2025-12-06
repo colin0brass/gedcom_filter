@@ -1,9 +1,13 @@
 """
-Person.py - Person class for GEDCOM mapping.
+person.py - geo_gedcom person and individual modeling for GEDCOM data.
 
-Defines:
-    - Person: Represents an individual in the GEDCOM file, with attributes for names, events, relationships, and photos.
+This module provides the Person class and utilities for modeling individuals
+in GEDCOM genealogical data. It supports:
+    - Parsing person records
+    - Extracting and normalizing personal attributes
+    - Associating people with life events and relationships
 
+Module: geo_gedcom.person
 Authors: @lmallez, @D-jeffrey, @colin0brass
 Last updated: 2025-12-06
 """
@@ -14,10 +18,10 @@ import logging
 import re
 from typing import Dict, Union, Optional, List
 
-from .lat_lon import LatLon
-from .location import Location
 from ged4py.model import Record, NameRec
 from ged4py.date import DateValue
+from .lat_lon import LatLon
+from .location import Location
 from .gedcom_date import GedcomDate
 from .partner import Partner
 from .life_event import LifeEvent

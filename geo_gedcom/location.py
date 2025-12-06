@@ -1,9 +1,13 @@
 """
-location.py - Location class for GEDCOM mapping and geocoding.
+location.py - geo_gedcom location and geocoding utilities for GEDCOM data.
 
-Defines the Location class for storing geocoded place information, including coordinates, country, and address details.
-Integrates with LatLon for coordinate validation and supports fuzzy address matching.
+This module provides the Location class and utilities for geocoding and handling
+addresses and places in GEDCOM data. It supports:
+    - Geocoding place names to lat/lon
+    - Address normalization and formatting
+    - Integration with external geocoding APIs
 
+Module: geo_gedcom.location
 Author: @colin0brass
 Last updated: 2025-11-29
 """

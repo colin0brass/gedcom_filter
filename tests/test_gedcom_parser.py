@@ -1,5 +1,5 @@
 import pytest
-from gedcom.gedcom_parser import GedcomParser
+from geo_gedcom.gedcom_parser import GedcomParser
 from pathlib import Path
 
 def test_gedcom_parser_init():

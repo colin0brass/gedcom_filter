@@ -1,4 +1,4 @@
-# gedcom Python Module
+# geo_gedcom Python Module
 
 This module provides core functionality for parsing, filtering, and exporting GEDCOM genealogical data. It is designed for modularity, maintainability, and robust handling of genealogical records, including people, places, events, and photos.
 
@@ -25,7 +25,7 @@ This module provides core functionality for parsing, filtering, and exporting GE
 
 ## Usage Example
 ```python
-from gedcom import Gedcom
+from geo_gedcom import Gedcom
 
 gedcom_file = "Tree_2025-12-04.ged"
 g = Gedcom(gedcom_file, only_use_photo_tags=True)
@@ -43,13 +43,13 @@ g.export_people_with_photos(filtered, "filtered.ged", "output", "photos")
 
 ## Directory Structure
 ```
-gedcom/
+geo_gedcom/
 ├── __init__.py
 ├── gedcom.py
 ├── gedcom_parser.py
 ├── person.py
 ├── location.py
-├── LatLon.py
+├── lat_lon.py
 ├── addressbook.py
 ├── gedcom_date.py
 └── README.md

@@ -2,7 +2,7 @@
 
 A Python toolkit for parsing, filtering, and exporting GEDCOM genealogical data with advanced features for photo management, relationship filtering, and custom output.
 
-See also: [gedcom module README](gedcom/README.md)
+See also: [geo_gedcom module README](geo_gedcom/README.md)
 
 ## Features
 - Parse GEDCOM files and extract individuals, families, and events
@@ -42,12 +42,13 @@ python gedcom_filter.py mytree.ged --ancestor_generations 3 --descendant_generat
 
 ## Project Structure
 - `gedcom_filter.py`   : Main CLI entry point
-- `gedcom_parser.py`   : GEDCOM parsing, filtering, and writing logic
-- `gedcom.py`          : Core data structures and filtering helpers
-- `Person.py`          : Person and LifeEvent classes
-- `location.py`        : Location/geocoding utilities
-- `LatLon.py`          : Latitude/longitude helpers
-- `addressbook.py`     : Fuzzy address book for place matching
+- `geo_gedcom/gedcom_parser.py`   : GEDCOM parsing, filtering, and writing logic
+- `geo_gedcom/gedcom.py`          : Core data structures and filtering helpers
+- `geo_gedcom/person.py`          : Person and LifeEvent classes
+- `geo_gedcom/location.py`        : Location/geocoding utilities
+- `geo_gedcom/lat_lon.py`         : Latitude/longitude helpers
+- `geo_gedcom/addressbook.py`     : Fuzzy address book for place matching
+- `geo_gedcom/gedcom_date.py`     : Date parsing and normalization
 
 ## Requirements
 
