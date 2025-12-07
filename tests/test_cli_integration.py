@@ -3,7 +3,7 @@ import os
 import pytest
 
 def test_cli_basic(tmp_path):
-    gedcom_file = "Tree_2025-12-04.ged"
+    gedcom_file = "geo_gedcom/samples/bronte.ged"
     output_filename = "test_output.ged"
 
     output_foldername = "output"

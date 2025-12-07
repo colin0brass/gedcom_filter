@@ -54,8 +54,8 @@ def get_arg_parser() -> argparse.ArgumentParser:
         help='Number of ancestor generations to include in filtered GEDCOM (default: 2; -1 for all ancestors)')
     parser.add_argument('--descendant_generations', type=int, default=2,
         help='Number of descendant generations to include in filtered GEDCOM (default: 2; -1 for all descendants)')
-    parser.add_argument('--start_person', type=str, default="David Leonard Osborne",
-        help='Name of the starting person to filter generations from (default: "David Leonard Osborne")')
+    parser.add_argument('--start_person', type=str, default=None,
+        help='Name of the starting person to filter generations from (default: None, uses first person in GEDCOM)')
     parser.add_argument('--wider_descendants_mode', type=str, choices=[
         'none', 'start', 'deep'], default='none',
         help='Control inclusion of wider descendants: "none" (default), "start" (to starting generation), or "deep" (to descendants level)')
@@ -133,12 +133,18 @@ def main() -> None:
             only_use_photo_tags=args.only_use_photo_tags
         )
 
-        starting_person_id = my_gedcom.find_person_by_name(args.start_person)
-        logger.info(f"Starting person ID(s): {starting_person_id[0]}")
+        starting_person_id = None
+        if args.start_person:
+            logger.info(f"Finding starting person by name: {args.start_person}")
+            starting_person_id = my_gedcom.find_person_by_name(args.start_person)
+        if not starting_person_id:
+            logger.warning("No starting person specified or found, defaulting to first person in GEDCOM")
+            starting_person_id = my_gedcom.get_first_person_id()
+        logger.info(f"Starting person ID(s): {starting_person_id}")
 
         logger.info("Filtering relatives...")
         people_list, message = my_gedcom.filter_generations(
-            starting_person_id=starting_person_id[0],
+            starting_person_id=starting_person_id,
             num_ancestor_generations=args.ancestor_generations,
             num_descendant_generations=args.descendant_generations,
             wider_descendants_end_generation=wider_descendants_end_generation,
